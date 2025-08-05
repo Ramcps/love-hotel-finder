@@ -26,7 +26,15 @@ export default {
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					foreground: 'hsl(var(--primary-foreground))',
+					hover: 'hsl(var(--primary-hover))'
+				},
+				hotel: {
+					primary: 'hsl(var(--hotel-primary))',
+					secondary: 'hsl(var(--hotel-secondary))'
+				},
+				rating: {
+					gold: 'hsl(var(--rating-gold))'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -62,6 +70,14 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				}
+			},
+			backgroundImage: {
+				'gradient-primary': 'var(--gradient-primary)',
+				'gradient-card': 'var(--gradient-card)'
+			},
+			boxShadow: {
+				'hotel': 'var(--shadow-hotel)',
+				'card-soft': 'var(--shadow-card)'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
