@@ -50,15 +50,35 @@ export const LocationInput = ({ onLocationSelect, isLoading }: LocationInputProp
     );
   };
 
-  const handleAddressSubmit = (e: React.FormEvent) => {
+  const handleAddressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address.trim()) return;
 
-    // For demo purposes, we'll use a mock geocoding
-    // In real app, this would call Google Geocoding API
+    // Simulate geocoding with realistic coordinates for common cities
+    const cityCoordinates: { [key: string]: { lat: number; lng: number } } = {
+      "new york": { lat: 40.7128, lng: -74.0060 },
+      "london": { lat: 51.5074, lng: -0.1278 },
+      "paris": { lat: 48.8566, lng: 2.3522 },
+      "tokyo": { lat: 35.6762, lng: 139.6503 },
+      "dubai": { lat: 25.2048, lng: 55.2708 },
+      "mumbai": { lat: 19.0760, lng: 72.8777 },
+      "delhi": { lat: 28.7041, lng: 77.1025 },
+      "bangalore": { lat: 12.9716, lng: 77.5946 }
+    };
+
+    const searchKey = address.toLowerCase();
+    let coordinates = cityCoordinates[searchKey];
+    
+    // If not found, use default coordinates with slight variation
+    if (!coordinates) {
+      coordinates = { 
+        lat: 40.7128 + (Math.random() - 0.5) * 0.1, 
+        lng: -74.0060 + (Math.random() - 0.5) * 0.1 
+      };
+    }
+
     onLocationSelect({
-      lat: 40.7128,
-      lng: -74.0060,
+      ...coordinates,
       address: address
     });
     

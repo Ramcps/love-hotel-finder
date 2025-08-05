@@ -25,41 +25,58 @@ interface HotelData {
 }
 
 // Mock hotel data - in real app this would come from Google Places API
-const mockHotels: HotelData[] = [
-  {
-    id: "1",
-    name: "Grand Plaza Hotel",
-    rating: 4.5,
-    address: "123 Main Street, Downtown",
-    distance: 0.8,
-    priceRange: "$$$",
-    image: "/placeholder.svg",
-    lat: 40.7589,
-    lng: -73.9851
-  },
-  {
-    id: "2", 
-    name: "Luxury Suites",
-    rating: 4.8,
-    address: "456 Park Avenue, Midtown",
-    distance: 1.2,
-    priceRange: "$$$$",
-    image: "/placeholder.svg",
-    lat: 40.7505,
-    lng: -73.9934
-  },
-  {
-    id: "3",
-    name: "Budget Inn",
-    rating: 4.1,
-    address: "789 Broadway, Theater District",
-    distance: 1.5,
-    priceRange: "$$",
-    image: "/placeholder.svg",
-    lat: 40.7505,
-    lng: -73.9934
-  }
-];
+const generateMockHotels = (location: Location): HotelData[] => {
+  const baseHotels = [
+    {
+      name: "Grand Plaza Hotel",
+      rating: 4.5,
+      priceRange: "$$$",
+      type: "luxury"
+    },
+    {
+      name: "Business Suites",
+      rating: 4.2,
+      priceRange: "$$$$",
+      type: "business"
+    },
+    {
+      name: "Comfort Inn & Suites",
+      rating: 4.0,
+      priceRange: "$$",
+      type: "budget"
+    },
+    {
+      name: "Boutique Hotel Downtown",
+      rating: 4.7,
+      priceRange: "$$$",
+      type: "boutique"
+    },
+    {
+      name: "City Center Lodge",
+      rating: 3.8,
+      priceRange: "$",
+      type: "budget"
+    }
+  ];
+
+  return baseHotels.map((hotel, index) => {
+    // Generate realistic coordinates within 2km radius
+    const randomOffset = () => (Math.random() - 0.5) * 0.02; // ~2km radius
+    const distance = Math.random() * 2; // 0-2km
+    
+    return {
+      id: (index + 1).toString(),
+      name: hotel.name,
+      rating: hotel.rating,
+      address: `${100 + index * 50} Main St, Near ${location.address}`,
+      distance: Math.round(distance * 10) / 10, // Round to 1 decimal
+      priceRange: hotel.priceRange,
+      image: "/placeholder.svg",
+      lat: location.lat + randomOffset(),
+      lng: location.lng + randomOffset()
+    };
+  }).sort((a, b) => a.distance - b.distance); // Sort by distance
+};
 
 export const HotelFinder = () => {
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
@@ -71,30 +88,49 @@ export const HotelFinder = () => {
     setCurrentLocation(location);
     setIsLoading(true);
 
-    // Simulate API call delay
-    setTimeout(() => {
-      setHotels(mockHotels);
-      setIsLoading(false);
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Generate realistic hotels based on the actual location
+      const nearbyHotels = generateMockHotels(location);
+      setHotels(nearbyHotels);
+      
       toast({
         title: "Hotels found!",
-        description: `Found ${mockHotels.length} hotels near ${location.address}`
+        description: `Found ${nearbyHotels.length} hotels within 2km of ${location.address}`
       });
-    }, 1500);
+    } catch (error) {
+      toast({
+        title: "Search failed",
+        description: "Unable to find hotels. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGetDirections = (hotel: HotelData) => {
-    if (!currentLocation) return;
+    if (!currentLocation) {
+      toast({
+        title: "Location required",
+        description: "Please set your location first to get directions",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    // Create Google Maps directions URL
-    const directionsUrl = `https://www.google.com/maps/dir/${currentLocation.lat},${currentLocation.lng}/${hotel.lat},${hotel.lng}`;
+    // Create accurate Google Maps directions URL
+    const directionsUrl = `https://www.google.com/maps/dir/${currentLocation.lat},${currentLocation.lng}/${hotel.lat},${hotel.lng}/@${hotel.lat},${hotel.lng},15z`;
     
     toast({
-      title: "Opening directions",
-      description: `Getting directions to ${hotel.name}`
+      title: "Opening Google Maps",
+      description: `Getting directions to ${hotel.name} (${hotel.distance}km away)`
     });
 
-    // Open in new tab
-    window.open(directionsUrl, '_blank');
+    // Open in new tab/window
+    window.open(directionsUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (
