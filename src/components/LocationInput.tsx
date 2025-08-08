@@ -14,6 +14,26 @@ export const LocationInput = ({ onLocationSelect, isLoading }: LocationInputProp
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const { toast } = useToast();
 
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const response = await fetch(
+        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
+      );
+      const data = await response.json();
+      
+      if (data.locality && data.countryName) {
+        return `${data.locality}, ${data.principalSubdivision || data.countryName}`;
+      } else if (data.city && data.countryName) {
+        return `${data.city}, ${data.countryName}`;
+      } else {
+        return `${data.countryName || 'Unknown location'}`;
+      }
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+  };
+
   const handleCurrentLocation = () => {
     if (!navigator.geolocation) {
       toast({
@@ -26,26 +46,53 @@ export const LocationInput = ({ onLocationSelect, isLoading }: LocationInputProp
 
     setIsGettingLocation(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
+        
+        toast({
+          title: "Getting location details...",
+          description: "Finding your exact address..."
+        });
+
+        const address = await reverseGeocode(latitude, longitude);
+        
         onLocationSelect({
           lat: latitude,
           lng: longitude,
-          address: "Current location"
+          address: address
         });
         setIsGettingLocation(false);
         toast({
           title: "Location found!",
-          description: "Searching for hotels near you..."
+          description: `Searching for hotels near ${address}...`
         });
       },
       (error) => {
         setIsGettingLocation(false);
+        let errorMessage = "Unable to get your location. Please enter an address manually.";
+        
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = "Location access denied. Please allow location access and try again.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = "Location information unavailable. Please try again.";
+            break;
+          case error.TIMEOUT:
+            errorMessage = "Location request timed out. Please try again.";
+            break;
+        }
+        
         toast({
           title: "Location error",
-          description: "Unable to get your location. Please enter an address manually.",
+          description: errorMessage,
           variant: "destructive"
         });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000
       }
     );
   };
