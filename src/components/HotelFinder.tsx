@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LocationInput } from "./LocationInput";
 import { HotelCard } from "./HotelCard";
+import { HotelDetails } from "./HotelDetails";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Hotel, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -123,6 +124,8 @@ export const HotelFinder = () => {
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
   const [hotels, setHotels] = useState<HotelData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedHotel, setSelectedHotel] = useState<HotelData | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const { toast } = useToast();
 
   const handleLocationSelect = async (location: Location) => {
@@ -172,6 +175,16 @@ export const HotelFinder = () => {
 
     // Open in new tab/window
     window.open(directionsUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleShowDetails = (hotel: HotelData) => {
+    setSelectedHotel(hotel);
+    setIsDetailsOpen(true);
+  };
+
+  const handleCloseDetails = () => {
+    setIsDetailsOpen(false);
+    setSelectedHotel(null);
   };
 
   return (
@@ -245,6 +258,7 @@ export const HotelFinder = () => {
                 key={hotel.id}
                 hotel={hotel}
                 onGetDirections={handleGetDirections}
+                onShowDetails={handleShowDetails}
               />
             ))}
           </div>
@@ -260,6 +274,14 @@ export const HotelFinder = () => {
             </p>
           </div>
         )}
+
+        {/* Hotel Details Modal */}
+        <HotelDetails
+          hotel={selectedHotel}
+          isOpen={isDetailsOpen}
+          onClose={handleCloseDetails}
+          onGetDirections={handleGetDirections}
+        />
       </div>
     </div>
   );

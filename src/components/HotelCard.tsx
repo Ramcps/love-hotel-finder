@@ -17,9 +17,10 @@ interface Hotel {
 interface HotelCardProps {
   hotel: Hotel;
   onGetDirections: (hotel: Hotel) => void;
+  onShowDetails: (hotel: Hotel) => void;
 }
 
-export const HotelCard = ({ hotel, onGetDirections }: HotelCardProps) => {
+export const HotelCard = ({ hotel, onGetDirections, onShowDetails }: HotelCardProps) => {
   return (
     <Card className="bg-gradient-card shadow-card-soft hover:shadow-hotel transition-all duration-300 border-0">
       <CardContent className="p-4">
@@ -34,7 +35,10 @@ export const HotelCard = ({ hotel, onGetDirections }: HotelCardProps) => {
           
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between mb-2">
-              <h3 className="font-semibold text-foreground truncate pr-2">
+              <h3 
+                className="font-semibold text-foreground truncate pr-2 cursor-pointer hover:text-hotel-primary transition-colors"
+                onClick={() => onShowDetails(hotel)}
+              >
                 {hotel.name}
               </h3>
               <div className="flex items-center gap-1 bg-rating-gold/10 px-2 py-1 rounded-full">
