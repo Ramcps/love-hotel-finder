@@ -10,6 +10,7 @@ interface Location {
   lat: number;
   lng: number;
   address: string;
+  country?: string;
 }
 
 interface HotelData {
@@ -24,37 +25,74 @@ interface HotelData {
   lng: number;
 }
 
+// Currency configurations based on country
+const getCurrencyConfig = (country: string) => {
+  const currencyMap: { [key: string]: { symbol: string; code: string; priceMultiplier: number } } = {
+    'India': { symbol: '₹', code: 'INR', priceMultiplier: 80 },
+    'United States': { symbol: '$', code: 'USD', priceMultiplier: 1 },
+    'United Kingdom': { symbol: '£', code: 'GBP', priceMultiplier: 0.8 },
+    'Canada': { symbol: 'C$', code: 'CAD', priceMultiplier: 1.3 },
+    'Australia': { symbol: 'A$', code: 'AUD', priceMultiplier: 1.5 },
+    'Germany': { symbol: '€', code: 'EUR', priceMultiplier: 0.9 },
+    'France': { symbol: '€', code: 'EUR', priceMultiplier: 0.9 },
+    'Japan': { symbol: '¥', code: 'JPY', priceMultiplier: 140 },
+    'Singapore': { symbol: 'S$', code: 'SGD', priceMultiplier: 1.4 },
+    'United Arab Emirates': { symbol: 'AED', code: 'AED', priceMultiplier: 3.7 }
+  };
+  
+  return currencyMap[country] || { symbol: '$', code: 'USD', priceMultiplier: 1 };
+};
+
+const formatPrice = (basePrice: number, country: string) => {
+  const { symbol, priceMultiplier } = getCurrencyConfig(country);
+  const convertedPrice = Math.round(basePrice * priceMultiplier);
+  
+  if (country === 'India') {
+    // Format Indian currency with commas (e.g., ₹2,500)
+    return `${symbol}${convertedPrice.toLocaleString('en-IN')}`;
+  }
+  
+  return `${symbol}${convertedPrice.toLocaleString()}`;
+};
+
 // Mock hotel data - in real app this would come from Google Places API
 const generateMockHotels = (location: Location): HotelData[] => {
+  const country = location.country || 'United States';
+  
   const baseHotels = [
     {
       name: "Grand Plaza Hotel",
       rating: 4.5,
-      priceRange: "$$$",
+      basePriceMin: 120,
+      basePriceMax: 200,
       type: "luxury"
     },
     {
       name: "Business Suites",
       rating: 4.2,
-      priceRange: "$$$$",
+      basePriceMin: 180,
+      basePriceMax: 280,
       type: "business"
     },
     {
       name: "Comfort Inn & Suites",
       rating: 4.0,
-      priceRange: "$$",
+      basePriceMin: 60,
+      basePriceMax: 100,
       type: "budget"
     },
     {
       name: "Boutique Hotel Downtown",
       rating: 4.7,
-      priceRange: "$$$",
+      basePriceMin: 150,
+      basePriceMax: 250,
       type: "boutique"
     },
     {
       name: "City Center Lodge",
       rating: 3.8,
-      priceRange: "$",
+      basePriceMin: 40,
+      basePriceMax: 80,
       type: "budget"
     }
   ];
@@ -64,13 +102,16 @@ const generateMockHotels = (location: Location): HotelData[] => {
     const randomOffset = () => (Math.random() - 0.5) * 0.02; // ~2km radius
     const distance = Math.random() * 2; // 0-2km
     
+    const minPrice = formatPrice(hotel.basePriceMin, country);
+    const maxPrice = formatPrice(hotel.basePriceMax, country);
+    
     return {
       id: (index + 1).toString(),
       name: hotel.name,
       rating: hotel.rating,
       address: `${100 + index * 50} Main St, Near ${location.address}`,
       distance: Math.round(distance * 10) / 10, // Round to 1 decimal
-      priceRange: hotel.priceRange,
+      priceRange: `${minPrice} - ${maxPrice}`,
       image: "/placeholder.svg",
       lat: location.lat + randomOffset(),
       lng: location.lng + randomOffset()

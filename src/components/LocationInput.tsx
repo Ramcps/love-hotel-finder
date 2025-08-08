@@ -5,7 +5,7 @@ import { MapPin, Search, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface LocationInputProps {
-  onLocationSelect: (location: { lat: number; lng: number; address: string }) => void;
+  onLocationSelect: (location: { lat: number; lng: number; address: string; country?: string }) => void;
   isLoading?: boolean;
 }
 
@@ -14,23 +14,32 @@ export const LocationInput = ({ onLocationSelect, isLoading }: LocationInputProp
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const { toast } = useToast();
 
-  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+  const reverseGeocode = async (lat: number, lng: number): Promise<{ address: string; country: string }> => {
     try {
       const response = await fetch(
         `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
       );
       const data = await response.json();
       
+      let address = '';
       if (data.locality && data.countryName) {
-        return `${data.locality}, ${data.principalSubdivision || data.countryName}`;
+        address = `${data.locality}, ${data.principalSubdivision || data.countryName}`;
       } else if (data.city && data.countryName) {
-        return `${data.city}, ${data.countryName}`;
+        address = `${data.city}, ${data.countryName}`;
       } else {
-        return `${data.countryName || 'Unknown location'}`;
+        address = `${data.countryName || 'Unknown location'}`;
       }
+      
+      return {
+        address,
+        country: data.countryName || 'Unknown'
+      };
     } catch (error) {
       console.error('Reverse geocoding failed:', error);
-      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      return {
+        address: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+        country: 'Unknown'
+      };
     }
   };
 
@@ -54,17 +63,18 @@ export const LocationInput = ({ onLocationSelect, isLoading }: LocationInputProp
           description: "Finding your exact address..."
         });
 
-        const address = await reverseGeocode(latitude, longitude);
+        const locationData = await reverseGeocode(latitude, longitude);
         
         onLocationSelect({
           lat: latitude,
           lng: longitude,
-          address: address
+          address: locationData.address,
+          country: locationData.country
         });
         setIsGettingLocation(false);
         toast({
           title: "Location found!",
-          description: `Searching for hotels near ${address}...`
+          description: `Searching for hotels near ${locationData.address}...`
         });
       },
       (error) => {
@@ -101,32 +111,43 @@ export const LocationInput = ({ onLocationSelect, isLoading }: LocationInputProp
     e.preventDefault();
     if (!address.trim()) return;
 
-    // Simulate geocoding with realistic coordinates for common cities
-    const cityCoordinates: { [key: string]: { lat: number; lng: number } } = {
-      "new york": { lat: 40.7128, lng: -74.0060 },
-      "london": { lat: 51.5074, lng: -0.1278 },
-      "paris": { lat: 48.8566, lng: 2.3522 },
-      "tokyo": { lat: 35.6762, lng: 139.6503 },
-      "dubai": { lat: 25.2048, lng: 55.2708 },
-      "mumbai": { lat: 19.0760, lng: 72.8777 },
-      "delhi": { lat: 28.7041, lng: 77.1025 },
-      "bangalore": { lat: 12.9716, lng: 77.5946 }
+    // City coordinates with country mapping
+    const cityData: { [key: string]: { lat: number; lng: number; country: string } } = {
+      "new york": { lat: 40.7128, lng: -74.0060, country: "United States" },
+      "london": { lat: 51.5074, lng: -0.1278, country: "United Kingdom" },
+      "paris": { lat: 48.8566, lng: 2.3522, country: "France" },
+      "tokyo": { lat: 35.6762, lng: 139.6503, country: "Japan" },
+      "dubai": { lat: 25.2048, lng: 55.2708, country: "United Arab Emirates" },
+      "mumbai": { lat: 19.0760, lng: 72.8777, country: "India" },
+      "delhi": { lat: 28.7041, lng: 77.1025, country: "India" },
+      "bangalore": { lat: 12.9716, lng: 77.5946, country: "India" },
+      "chennai": { lat: 13.0827, lng: 80.2707, country: "India" },
+      "pune": { lat: 18.5204, lng: 73.8567, country: "India" },
+      "hyderabad": { lat: 17.3850, lng: 78.4867, country: "India" },
+      "kolkata": { lat: 22.5726, lng: 88.3639, country: "India" },
+      "singapore": { lat: 1.3521, lng: 103.8198, country: "Singapore" },
+      "sydney": { lat: -33.8688, lng: 151.2093, country: "Australia" },
+      "toronto": { lat: 43.6532, lng: -79.3832, country: "Canada" },
+      "berlin": { lat: 52.5200, lng: 13.4050, country: "Germany" }
     };
 
     const searchKey = address.toLowerCase();
-    let coordinates = cityCoordinates[searchKey];
+    let locationData = cityData[searchKey];
     
-    // If not found, use default coordinates with slight variation
-    if (!coordinates) {
-      coordinates = { 
+    // If not found, default to US with entered address
+    if (!locationData) {
+      locationData = { 
         lat: 40.7128 + (Math.random() - 0.5) * 0.1, 
-        lng: -74.0060 + (Math.random() - 0.5) * 0.1 
+        lng: -74.0060 + (Math.random() - 0.5) * 0.1,
+        country: "United States"
       };
     }
 
     onLocationSelect({
-      ...coordinates,
-      address: address
+      lat: locationData.lat,
+      lng: locationData.lng,
+      address: address,
+      country: locationData.country
     });
     
     toast({
