@@ -7,11 +7,17 @@ interface Hotel {
   name: string;
   rating: number;
   address: string;
-  distance: number;
+  distance: string;
   priceRange: string;
   image: string;
   lat: number;
   lng: number;
+  phone?: string;
+  website?: string;
+  types?: string[];
+  openingHours?: string[];
+  reviews?: any[];
+  priceLevel?: number;
 }
 
 interface HotelCardProps {
@@ -56,7 +62,7 @@ export const HotelCard = ({ hotel, onGetDirections, onShowDetails }: HotelCardPr
             
             <div className="flex items-center justify-between">
               <div className="text-xs text-muted-foreground">
-                {hotel.distance}km away • {hotel.priceRange}
+                {hotel.distance} away • {hotel.priceRange}
               </div>
               
               <Button

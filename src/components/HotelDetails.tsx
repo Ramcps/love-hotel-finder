@@ -22,11 +22,17 @@ interface Hotel {
   name: string;
   rating: number;
   address: string;
-  distance: number;
+  distance: string;
   priceRange: string;
   image: string;
   lat: number;
   lng: number;
+  phone?: string;
+  website?: string;
+  types?: string[];
+  openingHours?: string[];
+  reviews?: any[];
+  priceLevel?: number;
 }
 
 interface HotelDetailsProps {
@@ -111,7 +117,7 @@ export const HotelDetails = ({ hotel, isOpen, onClose, onGetDirections }: HotelD
               <span className="text-sm text-muted-foreground">({details.reviews} reviews)</span>
             </div>
             <Badge variant="secondary" className="bg-hotel-primary/10 text-hotel-primary">
-              {hotel.distance}km away
+              {hotel.distance} away
             </Badge>
           </div>
           <div className="text-right">
@@ -128,7 +134,7 @@ export const HotelDetails = ({ hotel, isOpen, onClose, onGetDirections }: HotelD
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Phone className="w-4 h-4" />
-            <span>{details.phone}</span>
+            <span>{hotel.phone || details.phone}</span>
           </div>
         </div>
 

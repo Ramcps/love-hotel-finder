@@ -3,8 +3,9 @@ import { LocationInput } from "./LocationInput";
 import { HotelCard } from "./HotelCard";
 import { HotelDetails } from "./HotelDetails";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Hotel, MapPin } from "lucide-react";
+import { Hotel, MapPin, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import heroImage from "@/assets/hotel-hero.jpg";
 
 interface Location {
@@ -19,106 +20,19 @@ interface HotelData {
   name: string;
   rating: number;
   address: string;
-  distance: number;
+  distance: string;
   priceRange: string;
   image: string;
   lat: number;
   lng: number;
+  phone?: string;
+  website?: string;
+  types?: string[];
+  openingHours?: string[];
+  reviews?: any[];
+  priceLevel?: number;
 }
 
-// Currency configurations based on country
-const getCurrencyConfig = (country: string) => {
-  const currencyMap: { [key: string]: { symbol: string; code: string; priceMultiplier: number } } = {
-    'India': { symbol: '₹', code: 'INR', priceMultiplier: 80 },
-    'United States': { symbol: '$', code: 'USD', priceMultiplier: 1 },
-    'United Kingdom': { symbol: '£', code: 'GBP', priceMultiplier: 0.8 },
-    'Canada': { symbol: 'C$', code: 'CAD', priceMultiplier: 1.3 },
-    'Australia': { symbol: 'A$', code: 'AUD', priceMultiplier: 1.5 },
-    'Germany': { symbol: '€', code: 'EUR', priceMultiplier: 0.9 },
-    'France': { symbol: '€', code: 'EUR', priceMultiplier: 0.9 },
-    'Japan': { symbol: '¥', code: 'JPY', priceMultiplier: 140 },
-    'Singapore': { symbol: 'S$', code: 'SGD', priceMultiplier: 1.4 },
-    'United Arab Emirates': { symbol: 'AED', code: 'AED', priceMultiplier: 3.7 }
-  };
-  
-  return currencyMap[country] || { symbol: '$', code: 'USD', priceMultiplier: 1 };
-};
-
-const formatPrice = (basePrice: number, country: string) => {
-  const { symbol, priceMultiplier } = getCurrencyConfig(country);
-  const convertedPrice = Math.round(basePrice * priceMultiplier);
-  
-  if (country === 'India') {
-    // Format Indian currency with commas (e.g., ₹2,500)
-    return `${symbol}${convertedPrice.toLocaleString('en-IN')}`;
-  }
-  
-  return `${symbol}${convertedPrice.toLocaleString()}`;
-};
-
-// Mock hotel data - in real app this would come from Google Places API
-const generateMockHotels = (location: Location): HotelData[] => {
-  const country = location.country || 'United States';
-  
-  const baseHotels = [
-    {
-      name: "Grand Plaza Hotel",
-      rating: 4.5,
-      basePriceMin: 120,
-      basePriceMax: 200,
-      type: "luxury"
-    },
-    {
-      name: "Business Suites",
-      rating: 4.2,
-      basePriceMin: 180,
-      basePriceMax: 280,
-      type: "business"
-    },
-    {
-      name: "Comfort Inn & Suites",
-      rating: 4.0,
-      basePriceMin: 60,
-      basePriceMax: 100,
-      type: "budget"
-    },
-    {
-      name: "Boutique Hotel Downtown",
-      rating: 4.7,
-      basePriceMin: 150,
-      basePriceMax: 250,
-      type: "boutique"
-    },
-    {
-      name: "City Center Lodge",
-      rating: 3.8,
-      basePriceMin: 40,
-      basePriceMax: 80,
-      type: "budget"
-    }
-  ];
-
-  return baseHotels.map((hotel, index) => {
-    // Generate realistic coordinates within 2km radius
-    const randomOffset = () => (Math.random() - 0.5) * 0.02; // ~2km radius
-    const distance = Math.random() * 2; // 0-2km
-    
-    const minPrice = formatPrice(hotel.basePriceMin, country);
-    const maxPrice = formatPrice(hotel.basePriceMax, country);
-    
-    return {
-      id: (index + 1).toString(),
-      name: hotel.name,
-      rating: hotel.rating,
-      address: `${100 + index * 50} Main St, Near ${location.address}`,
-      distance: Math.round(distance * 10) / 10, // Round to 1 decimal
-      priceRange: `${minPrice} - ${maxPrice}`,
-      image: "/placeholder.svg",
-      lat: location.lat + randomOffset(),
-      lng: location.lng + randomOffset()
-    };
-  }).sort((a, b) => a.distance - b.distance); // Sort by distance
-};
 
 export const HotelFinder = () => {
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
@@ -133,23 +47,40 @@ export const HotelFinder = () => {
     setIsLoading(true);
 
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Generate realistic hotels based on the actual location
-      const nearbyHotels = generateMockHotels(location);
-      setHotels(nearbyHotels);
-      
-      toast({
-        title: "Hotels found!",
-        description: `Found ${nearbyHotels.length} hotels within 2km of ${location.address}`
+      const { data, error } = await supabase.functions.invoke('search-hotels', {
+        body: { 
+          location: location.address,
+          radius: 5000,
+          type: 'lodging'
+        }
       });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data && data.hotels) {
+        setHotels(data.hotels);
+        toast({
+          title: "Hotels found!",
+          description: `Found ${data.hotels.length} real hotels near ${location.address}`
+        });
+      } else {
+        setHotels([]);
+        toast({
+          title: "No hotels found",
+          description: "No hotels found in this location. Try a different search.",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
+      console.error('Search error:', error);
       toast({
         title: "Search failed",
-        description: "Unable to find hotels. Please try again.",
+        description: "Unable to find hotels. Please check your connection and try again.",
         variant: "destructive"
       });
+      setHotels([]);
     } finally {
       setIsLoading(false);
     }
@@ -170,7 +101,7 @@ export const HotelFinder = () => {
     
     toast({
       title: "Opening Google Maps",
-      description: `Getting directions to ${hotel.name} (${hotel.distance}km away)`
+      description: `Getting directions to ${hotel.name} (${hotel.distance} away)`
     });
 
     // Open in new tab/window
@@ -242,8 +173,8 @@ export const HotelFinder = () => {
         {/* Loading State */}
         {isLoading && (
           <div className="text-center py-8">
-            <div className="animate-spin w-8 h-8 border-4 border-hotel-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Finding hotels near you...</p>
+            <Loader2 className="w-8 h-8 animate-spin text-hotel-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Finding real hotels near you using Google Places...</p>
           </div>
         )}
 
