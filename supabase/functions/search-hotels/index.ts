@@ -1,4 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+
+console.log('Edge function starting...')
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,24 +8,34 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  console.log('Function invoked with method:', req.method)
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     const { location, radius = 5000, type = 'lodging' } = await req.json()
+    console.log('Request params:', { location, radius, type })
     
     const apiKey = Deno.env.get('GOOGLE_PLACES_API_KEY')
+    console.log('API Key exists:', !!apiKey)
+    
     if (!apiKey) {
+      console.error('Google Places API key not found')
       throw new Error('Google Places API key not found')
     }
 
     // First, get coordinates for the location
     const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(location)}&key=${apiKey}`
+    console.log('Geocoding URL created')
+    
     const geocodeResponse = await fetch(geocodeUrl)
     const geocodeData = await geocodeResponse.json()
+    console.log('Geocode response status:', geocodeData.status)
 
     if (geocodeData.status !== 'OK' || !geocodeData.results.length) {
+      console.error('Geocoding failed:', geocodeData.status)
       throw new Error('Location not found')
     }
 
@@ -90,6 +102,7 @@ serve(async (req) => {
     )
 
     const validHotels = hotels.filter(hotel => hotel !== null)
+    console.log('Found hotels:', validHotels.length)
 
     return new Response(
       JSON.stringify({ hotels: validHotels }),
@@ -102,7 +115,7 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error:', error)
+    console.error('Error in edge function:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
