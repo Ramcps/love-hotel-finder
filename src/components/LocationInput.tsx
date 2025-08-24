@@ -44,7 +44,10 @@ export const LocationInput = ({ onLocationSelect, isLoading }: LocationInputProp
   };
 
   const handleCurrentLocation = () => {
+    console.log('Getting current location...');
+    
     if (!navigator.geolocation) {
+      console.error('Geolocation not supported');
       toast({
         title: "Location not supported",
         description: "Your browser doesn't support location services",
@@ -53,9 +56,11 @@ export const LocationInput = ({ onLocationSelect, isLoading }: LocationInputProp
       return;
     }
 
+    console.log('Geolocation API available, requesting position...');
     setIsGettingLocation(true);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
+        console.log('Location acquired:', position.coords);
         const { latitude, longitude } = position.coords;
         
         toast({
@@ -78,19 +83,25 @@ export const LocationInput = ({ onLocationSelect, isLoading }: LocationInputProp
         });
       },
       (error) => {
+        console.error('Geolocation error:', error);
         setIsGettingLocation(false);
         let errorMessage = "Unable to get your location. Please enter an address manually.";
         
         switch(error.code) {
           case error.PERMISSION_DENIED:
+            console.error('Location permission denied');
             errorMessage = "Location access denied. Please allow location access and try again.";
             break;
           case error.POSITION_UNAVAILABLE:
+            console.error('Location position unavailable');
             errorMessage = "Location information unavailable. Please try again.";
             break;
           case error.TIMEOUT:
+            console.error('Location timeout');
             errorMessage = "Location request timed out. Please try again.";
             break;
+          default:
+            console.error('Unknown location error:', error.code, error.message);
         }
         
         toast({
@@ -186,7 +197,7 @@ export const LocationInput = ({ onLocationSelect, isLoading }: LocationInputProp
       <Button
         onClick={handleCurrentLocation}
         disabled={isGettingLocation || isLoading}
-        className="w-full bg-gradient-primary hover:bg-primary-hover text-primary-foreground shadow-hotel"
+        className="w-full bg-gradient-to-r from-orange-500 to-blue-500 hover:from-orange-600 hover:to-blue-600 text-white shadow-lg"
       >
         {isGettingLocation ? (
           <>
