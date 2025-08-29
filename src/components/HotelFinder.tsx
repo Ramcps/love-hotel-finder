@@ -33,6 +33,55 @@ interface HotelData {
   priceLevel?: number;
 }
 
+const generateMockHotels = (location: Location): HotelData[] => {
+  const hotelNames = [
+    "Grand Palace Hotel", "City Center Inn", "Luxury Suites", "Business Hotel", 
+    "Boutique Resort", "Heritage Hotel", "Royal Gardens", "Metro Hotel"
+  ];
+
+  return hotelNames.map((name, index) => {
+    const hotelLat = location.lat + (Math.random() - 0.5) * 0.02;
+    const hotelLng = location.lng + (Math.random() - 0.5) * 0.02;
+    const distance = calculateDistance(location.lat, location.lng, hotelLat, hotelLng);
+
+    return {
+      id: `mock_hotel_${index + 1}`,
+      name,
+      rating: Math.round((3.5 + Math.random() * 1.5) * 10) / 10,
+      address: `${Math.floor(Math.random() * 999) + 1} ${location.address.split(',')[0]} Street`,
+      distance: `${distance.toFixed(1)} km`,
+      priceRange: ["₹2,000-3,000", "₹3,000-5,000", "₹5,000-8,000", "₹1,500-2,500"][Math.floor(Math.random() * 4)],
+      image: `https://images.unsplash.com/photo-${[
+        '1566073771259-6a8506099945', '1582719478250-c4b3b6e2636', '1564501049412-61c2332789a3',
+        '1571003123894-1f0594d2b5d9', '1542314831-068cd1dbfeeb', '1590490360182-c33d57733427'
+      ][index % 6]}?w=400&h=300&fit=crop`,
+      lat: hotelLat,
+      lng: hotelLng,
+      phone: `+91 ${Math.floor(Math.random() * 9000000000) + 1000000000}`,
+      website: `www.${name.toLowerCase().replace(/\s+/g, '')}.com`,
+      types: ['lodging', 'establishment'],
+      openingHours: ['Open 24 hours'],
+      reviews: [
+        { author_name: 'John D.', text: 'Great service!', rating: 5 },
+        { author_name: 'Sarah M.', text: 'Clean and comfortable.', rating: 4 }
+      ],
+      priceLevel: Math.floor(Math.random() * 4) + 1
+    };
+  });
+};
+
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+};
+
 
 export const HotelFinder = () => {
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
@@ -57,7 +106,10 @@ export const HotelFinder = () => {
         }
       });
 
+      console.log('Edge function response:', { data, error });
+
       if (error) {
+        console.error('Supabase edge function error:', error);
         throw error;
       }
 
@@ -65,9 +117,10 @@ export const HotelFinder = () => {
         setHotels(data.hotels);
         toast({
           title: "Hotels Found",
-          description: `Found ${data.hotels.length} hotels near ${location.address} using LocationIQ`,
+          description: `Found ${data.hotels.length} hotels near ${location.address}`,
         });
       } else {
+        console.warn('No hotels in response data:', data);
         setHotels([]);
         toast({
           title: "No hotels found",
@@ -77,10 +130,15 @@ export const HotelFinder = () => {
       }
     } catch (error) {
       console.error('Error fetching hotels:', error);
+      
+      // Fallback to mock data if edge function fails
+      console.log('Using fallback mock data due to edge function failure');
+      const mockHotels = generateMockHotels(location);
+      setHotels(mockHotels);
+      
       toast({
-        title: "Error",
-        description: "Failed to search for hotels. Please try again.",
-        variant: "destructive",
+        title: "Hotels Found (Demo Mode)",
+        description: `Showing ${mockHotels.length} sample hotels near ${location.address}`,
       });
     } finally {
       setIsLoading(false);

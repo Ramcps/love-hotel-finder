@@ -1,22 +1,37 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 console.log('Edge function starting...')
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 serve(async (req) => {
   console.log('Function invoked with method:', req.method)
+  console.log('Request URL:', req.url)
   
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { location, radius = 5000 } = await req.json()
+    let requestBody;
+    try {
+      requestBody = await req.json()
+    } catch (parseError) {
+      console.error('Failed to parse JSON:', parseError)
+      throw new Error('Invalid JSON in request body')
+    }
+    
+    const { location, radius = 5000 } = requestBody
     console.log('Request params:', { location, radius })
+    
+    if (!location) {
+      throw new Error('Location parameter is required')
+    }
     
     const locationIqKey = Deno.env.get('LOCATIONIQ_API_KEY')
     console.log('LocationIQ API Key exists:', !!locationIqKey)
@@ -28,11 +43,27 @@ serve(async (req) => {
 
     // First, get coordinates for the location using LocationIQ
     const geocodeUrl = `https://eu1.locationiq.com/v1/search.php?key=${locationIqKey}&q=${encodeURIComponent(location)}&format=json&limit=1`
-    console.log('Geocoding with LocationIQ...')
+    console.log('Geocoding with LocationIQ:', geocodeUrl.replace(locationIqKey, '***'))
     
-    const geocodeResponse = await fetch(geocodeUrl)
-    const geocodeData = await geocodeResponse.json()
-    console.log('LocationIQ geocode response:', geocodeData.length)
+    let geocodeResponse, geocodeData;
+    try {
+      geocodeResponse = await fetch(geocodeUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Supabase Edge Function'
+        }
+      })
+      
+      if (!geocodeResponse.ok) {
+        throw new Error(`LocationIQ geocoding failed: ${geocodeResponse.status} ${geocodeResponse.statusText}`)
+      }
+      
+      geocodeData = await geocodeResponse.json()
+      console.log('LocationIQ geocode response:', geocodeData?.length || 0)
+    } catch (fetchError) {
+      console.error('Geocoding fetch error:', fetchError)
+      throw new Error(`Failed to geocode location: ${fetchError.message}`)
+    }
 
     if (!geocodeData || geocodeData.length === 0) {
       console.error('Geocoding failed: No results')
