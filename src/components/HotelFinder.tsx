@@ -146,7 +146,7 @@ export const HotelFinder = () => {
   };
 
 
-  const handleGetDirections = (hotel: HotelData) => {
+  const handleGetDirections = async (hotel: HotelData) => {
     if (!currentLocation) {
       toast({
         title: "Location required",
@@ -156,16 +156,46 @@ export const HotelFinder = () => {
       return;
     }
 
-    // Create accurate Google Maps directions URL
-    const directionsUrl = `https://www.google.com/maps/dir/${currentLocation.lat},${currentLocation.lng}/${hotel.lat},${hotel.lng}/@${hotel.lat},${hotel.lng},15z`;
-    
-    toast({
-      title: "Opening Google Maps",
-      description: `Getting directions to ${hotel.name} (${hotel.distance} away)`
-    });
+    try {
+      // Use LocationIQ directions API instead of Google Maps
+      const { data, error } = await supabase.functions.invoke('get-directions', {
+        body: { 
+          origin: { lat: currentLocation.lat, lng: currentLocation.lng },
+          destination: { lat: hotel.lat, lng: hotel.lng },
+          hotel_name: hotel.name
+        }
+      });
 
-    // Open in new tab/window
-    window.open(directionsUrl, '_blank', 'noopener,noreferrer');
+      if (error) {
+        throw error;
+      }
+
+      if (data && data.directions_url) {
+        toast({
+          title: "Opening Directions",
+          description: `Getting directions to ${hotel.name} (${hotel.distance} away)`
+        });
+        window.open(data.directions_url, '_blank', 'noopener,noreferrer');
+      } else {
+        // Fallback to OpenStreetMap directions
+        const osmUrl = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${currentLocation.lat}%2C${currentLocation.lng}%3B${hotel.lat}%2C${hotel.lng}`;
+        toast({
+          title: "Opening Directions",
+          description: `Getting directions to ${hotel.name} via OpenStreetMap`
+        });
+        window.open(osmUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (error) {
+      console.error('Error getting directions:', error);
+      
+      // Fallback to OpenStreetMap if LocationIQ fails
+      const osmUrl = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${currentLocation.lat}%2C${currentLocation.lng}%3B${hotel.lat}%2C${hotel.lng}`;
+      toast({
+        title: "Opening Directions",
+        description: `Getting directions to ${hotel.name} via OpenStreetMap`
+      });
+      window.open(osmUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const handleShowDetails = (hotel: HotelData) => {
