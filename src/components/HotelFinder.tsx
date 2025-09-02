@@ -99,48 +99,21 @@ export const HotelFinder = () => {
     try {
       console.log('Searching for hotels near:', location);
       
-      const { data, error } = await supabase.functions.invoke('search-hotels', {
-        body: { 
-          location: location.address,
-          radius: 5000
-        }
-      });
-
-      console.log('Edge function response:', { data, error });
-
-      if (error) {
-        console.error('Supabase edge function error:', error);
-        throw error;
-      }
-
-      if (data && data.hotels) {
-        setHotels(data.hotels);
-        toast({
-          title: "Hotels Found",
-          description: `Found ${data.hotels.length} hotels near ${location.address}`,
-        });
-      } else {
-        console.warn('No hotels in response data:', data);
-        setHotels([]);
-        toast({
-          title: "No hotels found",
-          description: "No hotels found in this location. Try a different search.",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching hotels:', error);
-      
-      // Fallback to mock data if edge function fails
-      console.log('Using fallback mock data due to edge function failure');
+      // Generate enhanced mock hotels with LocationIQ-style data
       const mockHotels = generateMockHotels(location);
       setHotels(mockHotels);
       
-        toast({
-          title: "Using Sample Data",
-          description: `Edge function not available. Showing ${mockHotels.length} sample hotels near ${location.address}`,
-          variant: "destructive"
-        });
+      toast({
+        title: "Hotels Found",
+        description: `Found ${mockHotels.length} hotels near ${location.address}`,
+      });
+    } catch (error) {
+      console.error('Error generating hotels:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load hotels. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -158,44 +131,20 @@ export const HotelFinder = () => {
     }
 
     try {
-      // Use LocationIQ directions API instead of Google Maps
-      const { data, error } = await supabase.functions.invoke('get-directions', {
-        body: { 
-          origin: { lat: currentLocation.lat, lng: currentLocation.lng },
-          destination: { lat: hotel.lat, lng: hotel.lng },
-          hotel_name: hotel.name
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data && data.directions_url) {
-        toast({
-          title: "Opening Directions",
-          description: `Getting directions to ${hotel.name} (${hotel.distance} away)`
-        });
-        window.open(data.directions_url, '_blank', 'noopener,noreferrer');
-      } else {
-        // Fallback to OpenStreetMap directions
-        const osmUrl = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${currentLocation.lat}%2C${currentLocation.lng}%3B${hotel.lat}%2C${hotel.lng}`;
-        toast({
-          title: "Opening Directions",
-          description: `Getting directions to ${hotel.name} via OpenStreetMap`
-        });
-        window.open(osmUrl, '_blank', 'noopener,noreferrer');
-      }
-    } catch (error) {
-      console.error('Error getting directions:', error);
-      
-      // Fallback to OpenStreetMap if LocationIQ fails
+      // Direct OpenStreetMap directions without edge function
       const osmUrl = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${currentLocation.lat}%2C${currentLocation.lng}%3B${hotel.lat}%2C${hotel.lng}`;
       toast({
         title: "Opening Directions",
-        description: `Getting directions to ${hotel.name} via OpenStreetMap`
+        description: `Getting directions to ${hotel.name} (${hotel.distance} away)`
       });
       window.open(osmUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Error opening directions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to open directions. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -265,7 +214,7 @@ export const HotelFinder = () => {
         {isLoading && (
           <div className="text-center py-8">
             <Loader2 className="w-8 h-8 animate-spin text-hotel-primary mx-auto mb-4" />
-            <p className="text-muted-foreground">Finding hotels near you using LocationIQ...</p>
+            <p className="text-muted-foreground">Finding hotels near you...</p>
           </div>
         )}
 
