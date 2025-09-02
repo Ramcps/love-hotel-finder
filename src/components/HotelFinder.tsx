@@ -99,19 +99,58 @@ export const HotelFinder = () => {
     try {
       console.log('Searching for hotels near:', location);
       
-      // Generate enhanced mock hotels with LocationIQ-style data
+      const { data, error } = await supabase.functions.invoke('search-hotels', {
+        body: { 
+          location: location.address,
+          radius: 5000
+        }
+      });
+
+      console.log('Edge function response:', { data, error });
+
+      if (error) {
+        console.error('Supabase edge function error:', error);
+        // Fallback to mock data if edge function fails
+        console.log('Using fallback mock data due to edge function failure');
+        const mockHotels = generateMockHotels(location);
+        setHotels(mockHotels);
+        
+        toast({
+          title: "Using Sample Data",
+          description: `Real hotel search unavailable. Deploy edge functions to enable real data. Showing ${mockHotels.length} sample hotels near ${location.address}`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data && data.hotels) {
+        setHotels(data.hotels);
+        toast({
+          title: "Hotels Found",
+          description: `Found ${data.hotels.length} real hotels near ${location.address}`,
+        });
+      } else {
+        console.warn('No hotels in response data:', data);
+        // Fallback to mock data
+        const mockHotels = generateMockHotels(location);
+        setHotels(mockHotels);
+        toast({
+          title: "Using Sample Data", 
+          description: `No real hotels found. Showing ${mockHotels.length} sample hotels near ${location.address}`,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching hotels:', error);
+      
+      // Fallback to mock data if edge function fails
+      console.log('Using fallback mock data due to edge function failure');
       const mockHotels = generateMockHotels(location);
       setHotels(mockHotels);
       
       toast({
-        title: "Hotels Found",
-        description: `Found ${mockHotels.length} hotels near ${location.address}`,
-      });
-    } catch (error) {
-      console.error('Error generating hotels:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load hotels. Please try again.",
+        title: "Using Sample Data",
+        description: `Real hotel search failed. Deploy edge functions to enable real data. Showing ${mockHotels.length} sample hotels near ${location.address}`,
         variant: "destructive"
       });
     } finally {
