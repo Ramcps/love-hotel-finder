@@ -136,10 +136,11 @@ export const HotelFinder = () => {
       const mockHotels = generateMockHotels(location);
       setHotels(mockHotels);
       
-      toast({
-        title: "Hotels Found (Demo Mode)",
-        description: `Showing ${mockHotels.length} sample hotels near ${location.address}`,
-      });
+        toast({
+          title: "Using Sample Data",
+          description: `Edge function not available. Showing ${mockHotels.length} sample hotels near ${location.address}`,
+          variant: "destructive"
+        });
     } finally {
       setIsLoading(false);
     }
