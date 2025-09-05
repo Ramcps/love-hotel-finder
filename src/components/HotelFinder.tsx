@@ -91,6 +91,18 @@ export const HotelFinder = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const { toast } = useToast();
 
+  const testEdgeFunctionConnection = async () => {
+    try {
+      console.log('🧪 Testing edge function connection...');
+      const { data, error } = await supabase.functions.invoke('test-connection');
+      console.log('🧪 Test result:', { data, error });
+      return { data, error };
+    } catch (err) {
+      console.error('🧪 Test connection failed:', err);
+      return { data: null, error: err };
+    }
+  };
+
   const handleLocationSelect = async (location: Location) => {
     setCurrentLocation(location);
     setIsLoading(true);
@@ -98,7 +110,15 @@ export const HotelFinder = () => {
 
     try {
       console.log('🔍 Searching for hotels near:', location);
-      console.log('🌐 Using Supabase edge functions');
+      
+      // First test edge function connectivity
+      const testResult = await testEdgeFunctionConnection();
+      if (testResult.error) {
+        console.warn('⚠️ Edge functions not deployed, using fallback');
+        throw new Error('Edge functions not deployed');
+      }
+      
+      console.log('🌐 Edge functions are live, fetching real data...');
       
       const { data, error } = await supabase.functions.invoke('search-hotels', {
         body: { 
@@ -112,48 +132,36 @@ export const HotelFinder = () => {
       console.log('❌ Response error details:', error);
 
       if (error) {
-        console.error('Supabase edge function error:', error);
-        // Fallback to mock data if edge function fails
-        console.log('Using fallback mock data due to edge function failure');
-        const mockHotels = generateMockHotels(location);
-        setHotels(mockHotels);
-        
-        toast({
-          title: "Using Sample Data",
-          description: `Real hotel search unavailable. Deploy edge functions to enable real data. Showing ${mockHotels.length} sample hotels near ${location.address}`,
-          variant: "destructive"
-        });
-        return;
+        console.error('🚨 Supabase edge function error:', error);
+        throw error; // Let catch block handle fallback
       }
 
-      if (data && data.hotels) {
+      if (data && data.hotels && data.hotels.length > 0) {
         setHotels(data.hotels);
         toast({
-          title: "Hotels Found",
-          description: `Found ${data.hotels.length} real hotels near ${location.address}`,
+          title: "🎉 Real Hotels Found!",
+          description: `Found ${data.hotels.length} real hotels near ${location.address} using LocationIQ`,
         });
+        console.log('✅ Successfully loaded real hotel data');
       } else {
-        console.warn('No hotels in response data:', data);
-        // Fallback to mock data
-        const mockHotels = generateMockHotels(location);
-        setHotels(mockHotels);
-        toast({
-          title: "Using Sample Data", 
-          description: `No real hotels found. Showing ${mockHotels.length} sample hotels near ${location.address}`,
-          variant: "destructive"
-        });
+        console.warn('⚠️ No hotels in response data:', data);
+        throw new Error('No hotels found in response');
       }
     } catch (error) {
-      console.error('Error fetching hotels:', error);
+      console.error('🚨 Error fetching hotels:', error);
       
-      // Fallback to mock data if edge function fails
-      console.log('Using fallback mock data due to edge function failure');
+      // Fallback to mock data
+      console.log('📋 Using fallback mock data');
       const mockHotels = generateMockHotels(location);
       setHotels(mockHotels);
       
+      const isDeploymentIssue = error.message?.includes('not deployed') || error.message?.includes('FunctionsRelayError');
+      
       toast({
-        title: "Using Sample Data",
-        description: `Real hotel search failed. Deploy edge functions to enable real data. Showing ${mockHotels.length} sample hotels near ${location.address}`,
+        title: isDeploymentIssue ? "📡 Deploy Edge Functions" : "🔄 Using Sample Data",
+        description: isDeploymentIssue 
+          ? `Edge functions need deployment. Run: supabase functions deploy search-hotels`
+          : `Showing ${mockHotels.length} sample hotels near ${location.address}`,
         variant: "destructive"
       });
     } finally {
@@ -173,15 +181,40 @@ export const HotelFinder = () => {
     }
 
     try {
-      // Direct OpenStreetMap directions without edge function
+      console.log('🧭 Getting directions to:', hotel.name);
+      
+      // Try edge function first for enhanced directions
+      try {
+        const { data, error } = await supabase.functions.invoke('get-directions', {
+          body: {
+            origin: { lat: currentLocation.lat, lng: currentLocation.lng },
+            destination: { lat: hotel.lat, lng: hotel.lng },
+            hotel_name: hotel.name
+          }
+        });
+
+        if (!error && data?.directions_url) {
+          console.log('✅ Using enhanced directions from edge function');
+          toast({
+            title: "🚗 Enhanced Directions",
+            description: `Route to ${hotel.name}: ${data.route_info?.duration}min, ${data.route_info?.distance}km`
+          });
+          window.open(data.directions_url, '_blank', 'noopener,noreferrer');
+          return;
+        }
+      } catch (edgeFunctionError) {
+        console.warn('⚠️ Edge function directions failed, using fallback');
+      }
+
+      // Fallback to direct OpenStreetMap directions
       const osmUrl = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${currentLocation.lat}%2C${currentLocation.lng}%3B${hotel.lat}%2C${hotel.lng}`;
       toast({
-        title: "Opening Directions",
+        title: "🗺️ Opening Directions",
         description: `Getting directions to ${hotel.name} (${hotel.distance} away)`
       });
       window.open(osmUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
-      console.error('Error opening directions:', error);
+      console.error('🚨 Error opening directions:', error);
       toast({
         title: "Error",
         description: "Failed to open directions. Please try again.",
