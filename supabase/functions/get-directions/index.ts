@@ -1,19 +1,15 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 
-console.log('Get directions edge function starting...')
+console.log('🧭 Get directions edge function starting...')
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+import { corsHeaders, handleCors } from '../_shared/cors.ts'
 
 serve(async (req) => {
-  console.log('Function invoked with method:', req.method)
+  console.log('🚀 Function invoked with method:', req.method)
+  console.log('📡 Request URL:', req.url)
   
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const corsResponse = handleCors(req)
+  if (corsResponse) return corsResponse
 
   try {
     const requestBody = await req.json()

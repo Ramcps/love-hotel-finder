@@ -97,7 +97,8 @@ export const HotelFinder = () => {
     setHotels([]);
 
     try {
-      console.log('Searching for hotels near:', location);
+      console.log('🔍 Searching for hotels near:', location);
+      console.log('🌐 Using Supabase edge functions');
       
       const { data, error } = await supabase.functions.invoke('search-hotels', {
         body: { 
@@ -106,7 +107,9 @@ export const HotelFinder = () => {
         }
       });
 
-      console.log('Edge function response:', { data, error });
+      console.log('📡 Edge function response:', { data, error });
+      console.log('📊 Response data type:', typeof data);
+      console.log('❌ Response error details:', error);
 
       if (error) {
         console.error('Supabase edge function error:', error);

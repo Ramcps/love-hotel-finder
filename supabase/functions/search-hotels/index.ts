@@ -1,21 +1,15 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeaders, handleCors } from '../_shared/cors.ts'
 
-console.log('Edge function starting...')
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+console.log('🏨 Search hotels edge function starting...')
 
 serve(async (req) => {
-  console.log('Function invoked with method:', req.method)
-  console.log('Request URL:', req.url)
+  console.log('🚀 Function invoked with method:', req.method)
+  console.log('📡 Request URL:', req.url)
   
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const corsResponse = handleCors(req)
+  if (corsResponse) return corsResponse
 
   try {
     let requestBody;
@@ -34,7 +28,8 @@ serve(async (req) => {
     }
     
     const locationIqKey = Deno.env.get('LOCATIONIQ_API_KEY')
-    console.log('LocationIQ API Key exists:', !!locationIqKey)
+    console.log('🔑 LocationIQ API Key exists:', !!locationIqKey)
+    console.log('🌍 Environment:', Deno.env.get('DENO_DEPLOYMENT_ID') ? 'production' : 'local')
     
     if (!locationIqKey) {
       console.error('LocationIQ API key not found')
@@ -116,10 +111,17 @@ serve(async (req) => {
       }
     })
 
-    console.log('Generated mock hotels:', mockHotels.length)
+    console.log('✅ Generated mock hotels:', mockHotels.length)
+
+    const result = { 
+      hotels: mockHotels,
+      location: { lat: parseFloat(lat), lng: parseFloat(lng) },
+      searchRadius: radius,
+      timestamp: new Date().toISOString()
+    }
 
     return new Response(
-      JSON.stringify({ hotels: mockHotels }),
+      JSON.stringify(result),
       { 
         headers: { 
           ...corsHeaders, 
